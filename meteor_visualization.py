@@ -116,10 +116,76 @@ meteor1 = Meteor(20000, 30000, -90, -300, 1000)
 running = True
 clock = pygame.time.Clock()
 
+class Button:
+    def __init__(self, x, y, width, height, text):
+        self.rect = pygame.Rect(x, y, width, height)
+        self.text = text
+        self.hovered = False
+    
+    def update(self, mouse_pos):
+        """Check if mouse is over button"""
+        self.hovered = self.rect.collidepoint(mouse_pos)
+    
+    def draw(self, surface, font):
+        """Draw button"""
+        color = (100, 150, 255) if self.hovered else (50, 100, 200)
+        pygame.draw.rect(surface, color, self.rect)
+        
+        # Draw text centered
+        text_surf = font.render(self.text, True, (255, 255, 255))
+        text_rect = text_surf.get_rect(center=self.rect.center)
+        surface.blit(text_surf, text_rect)
+    
+    def is_clicked(self, event):
+        """Check if button was clicked"""
+        return event.type == pygame.MOUSEBUTTONDOWN and self.rect.collidepoint(event.pos)
+
+font_small = pygame.font.Font(None, 24)
+meteors_button = Button(10, 10, 120, 40, "Meteors")
+panel_open = False
+
+all_meteors = generate_placeholder_meteors(100)
+panel_open = False
+selected_meteor = None
+scroll_offset = 0  # For scrolling later
+
+def draw_meteor_panel(surface, meteors, scroll_offset, font_small):
+    """Draw the meteor selection panel"""
+    panel_x, panel_y = 10, 60  # Below the button
+    panel_width, panel_height = 300, 400
+    
+    # Draw panel background
+    pygame.draw.rect(surface, (30, 30, 30), pygame.Rect(panel_x, panel_y, panel_width, panel_height))
+    pygame.draw.rect(surface, (100, 100, 100), pygame.Rect(panel_x, panel_y, panel_width, panel_height), 2)  # Border
+    
+    # Draw meteor list
+    item_height = 30
+    y_pos = panel_y + 10
+    
+    for i, meteor in enumerate(meteors):
+        # Skip items that would be above scroll
+        if y_pos - scroll_offset < panel_y:
+            y_pos += item_height
+            continue
+        
+        # Stop if past bottom of panel
+        if y_pos - scroll_offset > panel_y + panel_height:
+            break
+        
+        # Draw meteor item
+        text = f"Meteor {i+1}"
+        text_surf = font_small.render(text, True, (255, 255, 255))
+        screen_y = y_pos - scroll_offset
+        surface.blit(text_surf, (panel_x + 10, screen_y))
+        
+        y_pos += item_height
+
 while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
+        if meteors_button.is_clicked(event):
+            panel_open = not panel_open
     
     meteor1.update(earth.x, earth.y, sun.x, sun.y, 1)
     
@@ -139,6 +205,14 @@ while running:
 
     text = font.render(f"Distance: {distance:.0f} km | Speed: {speed:.2f} km/s | Time: {meteor1.time:.1f}s", True, (255, 255, 255))
     screen.blit(text, (10, 10))
+
+    if panel_open:
+       draw_meteor_panel(screen, all_meteors, scroll_offset, font_small)
+
+    mouse_pos = pygame.mouse.get_pos()
+    meteors_button.update(mouse_pos)
+    meteors_button.draw(screen, font_small)
+
 
     pygame.display.flip()
     clock.tick(30)
